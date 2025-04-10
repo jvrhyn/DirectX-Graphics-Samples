@@ -42,6 +42,38 @@ float3 hsv2rgb(float3 c)
     return c.z * lerp(K.xxx, saturate(p - K.xxx), c.y);
 }
 
+// Function for custom gradient based on user specification
+float3 getGradientColor(float t)
+{
+    // Define color stops (RGB 0-1) and their positions (0-1) - Removed blackish stop
+    const int NUM_STOPS = 5; // Now 5 stops
+    float3 colors[NUM_STOPS] = {
+        float3(0.0f, 0.027f, 0.392f),  // Dark Blue (0, 7, 100)
+        float3(0.125f, 0.420f, 0.796f), // Blue      (32, 107, 203)
+        float3(0.929f, 1.0f, 1.0f),    // White     (237, 255, 255)
+        float3(1.0f, 0.667f, 0.0f),    // Orange    (255, 170, 0)
+        float3(0.0f, 0.027f, 0.392f)   // Dark Blue (wrap)
+    };
+    // Adjusted stops to remove the gap for blackish
+    float stops[NUM_STOPS] = { 0.0f, 0.16f, 0.42f, 0.6425f, 1.0f }; 
+
+    // Find the segment t falls into and lerp
+    for (int i = 0; i < NUM_STOPS - 1; ++i)
+    {
+        if (t >= stops[i] && t <= stops[i+1])
+        {
+            // Normalize t to the range [0, 1] within this segment
+            float local_t = (t - stops[i]) / (stops[i+1] - stops[i]);
+            // Handle potential division by zero if stops are identical
+            if (stops[i+1] <= stops[i]) return colors[i]; 
+            return lerp(colors[i], colors[i+1], local_t);
+        }
+    }
+
+    // Fallback (if t is exactly 1.0 or slightly outside due to precision)
+    return colors[NUM_STOPS - 1]; // Returns the wrap color (Dark Blue)
+}
+
 float4 PSMain(PSInput input) : SV_TARGET
 {
     // Extract view parameters from constant buffer
@@ -90,13 +122,11 @@ float4 PSMain(PSInput input) : SV_TARGET
         // Note: HLSL log2 operates on float, cast double value carefully.
         float smooth_iter = (float)iterations + 1.0f - log2(log2((float)dz_sq));
         
-        // Map smooth iteration to Hue (0-1 cycle)
-        float hue = frac(smooth_iter / 20.0f); // Adjust scale (e.g., 20.0f) for desired color frequency
-        float saturation = 1.0f; // Full saturation
-        float value = 1.0f;      // Full brightness
+        // Map smooth iteration to t (0-1 cycle)
+        float t = frac(smooth_iter / 30.0f); // Adjust scale (e.g., 30.0f) for desired frequency/density
 
-        // Convert HSV to RGB
-        color = hsv2rgb(float3(hue, saturation, value));
+        // Get color from custom gradient
+        color = getGradientColor(t);
     }
     
     return float4(color, 1.0f);
