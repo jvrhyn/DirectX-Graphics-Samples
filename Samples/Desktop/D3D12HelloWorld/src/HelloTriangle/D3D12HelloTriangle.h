@@ -91,6 +91,10 @@ private:
     int m_lastMouseX;
     int m_lastMouseY;
 
+    // Coasting state
+    double m_velocityX;
+    double m_velocityY;
+
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();

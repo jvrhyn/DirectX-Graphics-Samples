@@ -23,7 +23,9 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
     m_scale(1.0),   // Initialize scale (double)
     m_isDragging(false),
     m_lastMouseX(0),
-    m_lastMouseY(0)
+    m_lastMouseY(0),
+    m_velocityX(0.0),
+    m_velocityY(0.0)
 {
 }
 
@@ -42,6 +44,25 @@ void D3D12HelloTriangle::OnUpdate()
     constantBufferData.scale = m_scale;
     constantBufferData.padding = 0.0; // Initialize padding
     memcpy(m_pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
+
+    // Apply coasting if not dragging and velocity is significant
+    if (!m_isDragging && (abs(m_velocityX) > 1e-9 || abs(m_velocityY) > 1e-9))
+    {
+        m_offsetX += m_velocityX;
+        m_offsetY += m_velocityY;
+
+        // Dampen the velocity (e.g., reduce by 5% each frame)
+        double dampingFactor = 0.95;
+        m_velocityX *= dampingFactor;
+        m_velocityY *= dampingFactor;
+
+        // Stop coasting if velocity becomes very small
+        if (abs(m_velocityX) < 1e-9 && abs(m_velocityY) < 1e-9)
+        {
+            m_velocityX = 0.0;
+            m_velocityY = 0.0;
+        }
+    }
 }
 
 // Load the rendering pipeline dependencies.
@@ -488,11 +509,14 @@ void D3D12HelloTriangle::OnLButtonDown(int x, int y)
     m_isDragging = true;
     m_lastMouseX = x;
     m_lastMouseY = y;
+    m_velocityX = 0.0; // Stop any previous coasting
+    m_velocityY = 0.0;
 }
 
 void D3D12HelloTriangle::OnLButtonUp()
 {
     m_isDragging = false;
+    // Keep m_velocityX/Y - the damping will happen in OnUpdate
 }
 
 void D3D12HelloTriangle::OnMouseMove(int x, int y)
@@ -513,9 +537,13 @@ void D3D12HelloTriangle::OnMouseMove(int x, int y)
         double dx = (double)deltaX * (complexWidth / m_width); 
         double dy = (double)deltaY * (complexHeight / m_height);
         
-        // Apply the offset (subtract dx for horizontal, add dy for vertical)
+        // Apply the offset
         m_offsetX -= dx;
-        m_offsetY += dy; // Invert vertical drag direction
+        m_offsetY += dy;
+        
+        // Store the delta as velocity for coasting
+        m_velocityX = -dx; // Store the offset applied
+        m_velocityY = dy;  // Store the offset applied
         
         m_lastMouseX = x;
         m_lastMouseY = y;
