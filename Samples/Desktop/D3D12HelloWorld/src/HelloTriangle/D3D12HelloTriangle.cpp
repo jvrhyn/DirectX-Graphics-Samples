@@ -417,16 +417,16 @@ void D3D12HelloTriangle::OnKeyDown(UINT8 key)
 
     switch (key)
     {
-    case 'W': // Pan Up
-        m_offsetY -= panStep;
-        break;
-    case 'A': // Pan Left
-        m_offsetX -= panStep;
-        break;
-    case 'S': // Pan Down
+    case 'W': // Pan Down (Inverted)
         m_offsetY += panStep;
         break;
-    case 'D': // Pan Right
+    case 'A': // Pan Right (Inverted)
+        m_offsetX -= panStep;
+        break;
+    case 'S': // Pan Up (Inverted)
+        m_offsetY -= panStep;
+        break;
+    case 'D': // Pan Left (Inverted)
         m_offsetX += panStep;
         break;
     case 'Q': // Zoom In

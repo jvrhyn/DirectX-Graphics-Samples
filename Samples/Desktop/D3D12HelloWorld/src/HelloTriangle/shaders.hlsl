@@ -62,15 +62,26 @@ float4 PSMain(PSInput input) : SV_TARGET
             iterations = i;
             break;
         }
-        iterations = i;
     }
 
-    float color = (float)iterations / (float)max_iterations;
-    
-    if (iterations == max_iterations - 1)
+    // Color based on iteration count
+    float3 color = float3(0.0, 0.0, 0.0); // Default to black (inside set)
+
+    if (dot(z, z) > 4.0) // Check if it escaped
     {
-        color = 0.0;
+        // Smooth iteration count calculation
+        // iterations = i + 1 - log2(log2(length(z))) 
+        // Using dot(z,z) = length(z)^2 avoids sqrt()
+        // iterations = i + 1 - log2(log2(sqrt(dot(z,z))))
+        // iterations = i + 1 - log2(0.5 * log2(dot(z,z)))
+        float smooth_iter = (float)iterations + 1.0 - log2(log2(dot(z, z))) / 2.0;
+
+        // Simple cyclical color mapping based on smooth iteration count
+        float t = smooth_iter / 16.0f; // Adjust denominator for color frequency
+        color.r = 0.5f + 0.5f * cos(3.14159f * 2.0f * t + 0.0f);
+        color.g = 0.5f + 0.5f * cos(3.14159f * 2.0f * t + 2.0f * 3.14159f / 3.0f);
+        color.b = 0.5f + 0.5f * cos(3.14159f * 2.0f * t + 4.0f * 3.14159f / 3.0f);
     }
     
-    return float4(color, color, color, 1.0f);
+    return float4(color, 1.0f);
 }
