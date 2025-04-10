@@ -17,7 +17,10 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
     m_frameIndex(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-    m_rtvDescriptorSize(0)
+    m_rtvDescriptorSize(0),
+    m_offsetX(0.0f), // Initialize offset X
+    m_offsetY(0.0f), // Initialize offset Y
+    m_scale(1.0f)    // Initialize scale
 {
 }
 
@@ -167,7 +170,6 @@ void D3D12HelloTriangle::LoadAssets()
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
 
         // Describe and create the graphics pipeline state object (PSO).
@@ -197,15 +199,20 @@ void D3D12HelloTriangle::LoadAssets()
 
     // Create the vertex buffer.
     {
-        // Define the geometry for a triangle.
-        Vertex triangleVertices[] =
+        // Define the geometry for a quad.
+        Vertex quadVertices[] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+            // First triangle
+            { { -1.0f,  1.0f, 0.0f } },
+            { {  1.0f,  1.0f, 0.0f } },
+            { { -1.0f, -1.0f, 0.0f } },
+            // Second triangle
+            { { -1.0f, -1.0f, 0.0f } },
+            { {  1.0f,  1.0f, 0.0f } },
+            { {  1.0f, -1.0f, 0.0f } }
         };
 
-        const UINT vertexBufferSize = sizeof(triangleVertices);
+        const UINT vertexBufferSize = sizeof(quadVertices);
 
         // Note: using upload heaps to transfer static data like vert buffers is not 
         // recommended. Every time the GPU needs it, the upload heap will be marshalled 
@@ -219,11 +226,11 @@ void D3D12HelloTriangle::LoadAssets()
             nullptr,
             IID_PPV_ARGS(&m_vertexBuffer)));
 
-        // Copy the triangle data to the vertex buffer.
+        // Copy the quad data to the vertex buffer.
         UINT8* pVertexDataBegin;
         CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+        memcpy(pVertexDataBegin, quadVertices, sizeof(quadVertices));
         m_vertexBuffer->Unmap(0, nullptr);
 
         // Initialize the vertex buffer view.
@@ -309,7 +316,7 @@ void D3D12HelloTriangle::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    m_commandList->DrawInstanced(6, 1, 0, 0);
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -337,4 +344,36 @@ void D3D12HelloTriangle::WaitForPreviousFrame()
     }
 
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+}
+
+void D3D12HelloTriangle::OnKeyDown(UINT8 key)
+{
+    float panStep = 0.1f / m_scale; // Adjust pan speed based on zoom level
+    float zoomFactor = 1.2f;
+
+    switch (key)
+    {
+    case 'W': // Pan Up
+        m_offsetY -= panStep;
+        break;
+    case 'A': // Pan Left
+        m_offsetX -= panStep;
+        break;
+    case 'S': // Pan Down
+        m_offsetY += panStep;
+        break;
+    case 'D': // Pan Right
+        m_offsetX += panStep;
+        break;
+    case 'Q': // Zoom In
+        m_scale *= zoomFactor;
+        break;
+    case 'E': // Zoom Out
+        m_scale /= zoomFactor;
+        break;
+    default:
+        // Optional: call base class handler if needed
+        // DXSample::OnKeyDown(key);
+        break;
+    }
 }

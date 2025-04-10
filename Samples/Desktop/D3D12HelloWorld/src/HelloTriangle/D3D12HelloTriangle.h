@@ -31,6 +31,7 @@ public:
     virtual void OnUpdate();
     virtual void OnRender();
     virtual void OnDestroy();
+    virtual void OnKeyDown(UINT8 key);
 
 private:
     static const UINT FrameCount = 2;
@@ -38,8 +39,15 @@ private:
     struct Vertex
     {
         XMFLOAT3 position;
-        XMFLOAT4 color;
     };
+
+    // Constant buffer structure. Must be 256-byte aligned.
+    struct SceneConstantBuffer
+    {
+        XMFLOAT4 offset; // Using XMFLOAT4 for alignment (stores offsetX, offsetY, scale, unused)
+        // Add more parameters here if needed
+    };
+    static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
@@ -58,12 +66,20 @@ private:
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+    UINT8* m_pCbvDataBegin;
 
     // Synchronization objects.
     UINT m_frameIndex;
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
+
+    // Mandelbrot view parameters
+    float m_offsetX;
+    float m_offsetY;
+    float m_scale;
 
     void LoadPipeline();
     void LoadAssets();
