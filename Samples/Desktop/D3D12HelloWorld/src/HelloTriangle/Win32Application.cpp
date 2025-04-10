@@ -101,6 +101,15 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         }
         return 0;
 
+    case WM_MOUSEWHEEL:
+        if (pSample)
+        {
+            // Extract wheel delta.
+            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            pSample->OnMouseWheel(delta);
+        }
+        return 0;
+
     case WM_PAINT:
         if (pSample)
         {

@@ -441,3 +441,18 @@ void D3D12HelloTriangle::OnKeyDown(UINT8 key)
         break;
     }
 }
+
+void D3D12HelloTriangle::OnMouseWheel(int delta)
+{
+    double zoomFactor = 1.2; // Use double for calculation
+
+    if (delta > 0) // Scroll Up (Zoom In)
+    {
+        m_scale *= zoomFactor;
+    }
+    else if (delta < 0) // Scroll Down (Zoom Out)
+    {
+        m_scale /= zoomFactor;
+    }
+    // No action if delta is 0
+}

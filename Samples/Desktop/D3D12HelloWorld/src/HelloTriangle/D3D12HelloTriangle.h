@@ -32,6 +32,7 @@ public:
     virtual void OnRender();
     virtual void OnDestroy();
     virtual void OnKeyDown(UINT8 key);
+    virtual void OnMouseWheel(int delta) override;
 
 private:
     static const UINT FrameCount = 2;
