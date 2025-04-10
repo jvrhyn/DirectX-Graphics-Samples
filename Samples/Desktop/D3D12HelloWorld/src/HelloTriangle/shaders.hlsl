@@ -32,9 +32,19 @@ PSInput VSMain(float4 position : POSITION)
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    // Extract view parameters from constant buffer
+    float2 viewOffset = offset.xy;
+    float viewScale = offset.z;
+
+    // Map UV coordinates (0 to 1) to complex plane coordinates using view parameters
+    // Adjust the base range and apply offset and scale
+    float aspectRatio = 1.0; // Assuming square aspect ratio mapping for now. We might need to pass screen dimensions later.
+    float baseWidth = 3.0;
+    float baseHeight = 2.0; // Adjust based on the initial complex plane view
+
     float2 c = float2(
-        input.uv.x * 3.0 - 2.0,
-        input.uv.y * 2.0 - 1.0
+        (input.uv.x - 0.5) * baseWidth / viewScale + viewOffset.x,
+        (input.uv.y - 0.5) * baseHeight / viewScale + viewOffset.y
     );
 
     float2 z = float2(0.0, 0.0);

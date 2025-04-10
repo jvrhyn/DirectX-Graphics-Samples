@@ -47,7 +47,6 @@ private:
         XMFLOAT4 offset; // Using XMFLOAT4 for alignment (stores offsetX, offsetY, scale, unused)
         // Add more parameters here if needed
     };
-    static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;

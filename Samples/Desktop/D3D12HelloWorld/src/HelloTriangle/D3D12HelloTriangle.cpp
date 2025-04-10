@@ -30,6 +30,14 @@ void D3D12HelloTriangle::OnInit()
     LoadAssets();
 }
 
+void D3D12HelloTriangle::OnUpdate()
+{
+    // Update constant buffer data based on the current view state
+    SceneConstantBuffer constantBufferData = {};
+    constantBufferData.offset = XMFLOAT4(m_offsetX, m_offsetY, m_scale, 0.0f);
+    memcpy(m_pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
+}
+
 // Load the rendering pipeline dependencies.
 void D3D12HelloTriangle::LoadPipeline()
 {
@@ -142,12 +150,29 @@ void D3D12HelloTriangle::LoadAssets()
 {
     // Create an empty root signature.
     {
-        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        // Define a descriptor range for the constant buffer view (CBV).
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+        // Define a root parameter that points to the descriptor range.
+        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // Use a static sampler (optional, not strictly needed for Mandelbrot but good practice if textures were used)
+        // CD3DX12_STATIC_SAMPLER_DESC staticSampler(...);
+
+        // Create the root signature description.
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
-        ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+        // Use D3D12SerializeVersionedRootSignature for version 1.1
+        ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
+        if (error)
+        {
+            OutputDebugStringA((char*)error->GetBufferPointer());
+        }
         ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
     }
 
@@ -239,6 +264,42 @@ void D3D12HelloTriangle::LoadAssets()
         m_vertexBufferView.SizeInBytes = vertexBufferSize;
     }
 
+    // Create the constant buffer.
+    {
+        // Create the descriptor heap for the CBV.
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.NumDescriptors = 1;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+
+        // Calculate the constant buffer size required to be aligned.
+        const UINT constantBufferSize = (sizeof(SceneConstantBuffer) + 255) & ~255; // Aligned size
+
+        // Create the constant buffer resource.
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize), // Use aligned size
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_constantBuffer)));
+
+        // Describe and create the constant buffer view (CBV).
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+        cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+        cbvDesc.SizeInBytes = constantBufferSize; // Use aligned size
+        m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        // Map the constant buffer and keep it mapped.
+        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+        // We don't unmap until cleanup.
+
+        // Initialize the constant buffer data (optional, OnUpdate will handle it)
+        // memcpy(m_pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
+    }
+
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
         ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -256,11 +317,6 @@ void D3D12HelloTriangle::LoadAssets()
         // complete before continuing.
         WaitForPreviousFrame();
     }
-}
-
-// Update frame-based values.
-void D3D12HelloTriangle::OnUpdate()
-{
 }
 
 // Render the scene.
@@ -302,6 +358,14 @@ void D3D12HelloTriangle::PopulateCommandList()
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+    // Set the descriptor heap for the constant buffer.
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+    // Bind the constant buffer to the root signature (root parameter 0).
+    m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
