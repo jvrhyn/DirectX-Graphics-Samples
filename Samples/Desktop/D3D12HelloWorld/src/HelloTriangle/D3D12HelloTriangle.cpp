@@ -20,7 +20,10 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
     m_rtvDescriptorSize(0),
     m_offsetX(0.0), // Initialize offset X (double)
     m_offsetY(0.0), // Initialize offset Y (double)
-    m_scale(1.0)    // Initialize scale (double)
+    m_scale(1.0),   // Initialize scale (double)
+    m_isDragging(false),
+    m_lastMouseX(0),
+    m_lastMouseY(0)
 {
 }
 
@@ -478,4 +481,43 @@ void D3D12HelloTriangle::OnMouseWheel(int delta)
         m_scale /= zoomFactor;
     }
     // No action if delta is 0
+}
+
+void D3D12HelloTriangle::OnLButtonDown(int x, int y)
+{
+    m_isDragging = true;
+    m_lastMouseX = x;
+    m_lastMouseY = y;
+}
+
+void D3D12HelloTriangle::OnLButtonUp()
+{
+    m_isDragging = false;
+}
+
+void D3D12HelloTriangle::OnMouseMove(int x, int y)
+{
+    if (m_isDragging)
+    {
+        int deltaX = x - m_lastMouseX;
+        int deltaY = y - m_lastMouseY;
+
+        // Convert pixel delta to complex plane offset
+        // Need to consider the current scale and viewport size
+        // Assuming baseWidth/baseHeight corresponds to the view when scale is 1.0
+        // The width of the view in complex coordinates is roughly baseWidth / m_scale
+        double complexWidth = 3.0 / m_scale; // Matches baseWidth in shader
+        double complexHeight = 2.0 / m_scale; // Matches baseHeight in shader
+        
+        // How much of the complex plane width/height corresponds to one pixel?
+        double dx = (double)deltaX * (complexWidth / m_width); 
+        double dy = (double)deltaY * (complexHeight / m_height);
+        
+        // Apply the offset (subtract dx for horizontal, add dy for vertical)
+        m_offsetX -= dx;
+        m_offsetY += dy; // Invert vertical drag direction
+        
+        m_lastMouseX = x;
+        m_lastMouseY = y;
+    }
 }

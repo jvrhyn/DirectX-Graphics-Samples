@@ -33,6 +33,9 @@ public:
     virtual void OnDestroy();
     virtual void OnKeyDown(UINT8 key);
     virtual void OnMouseWheel(int delta) override;
+    virtual void OnLButtonDown(int x, int y) override;
+    virtual void OnLButtonUp() override;
+    virtual void OnMouseMove(int x, int y) override;
 
 private:
     static const UINT FrameCount = 2;
@@ -82,6 +85,11 @@ private:
     double m_offsetX;
     double m_offsetY;
     double m_scale;
+
+    // Mouse state for dragging
+    bool m_isDragging;
+    int m_lastMouseX;
+    int m_lastMouseY;
 
     void LoadPipeline();
     void LoadAssets();

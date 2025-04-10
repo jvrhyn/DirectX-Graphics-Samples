@@ -29,6 +29,9 @@ public:
     virtual void OnKeyDown(UINT8 /*key*/)   {}
     virtual void OnKeyUp(UINT8 /*key*/)     {}
     virtual void OnMouseWheel(int /*delta*/) {}
+    virtual void OnLButtonDown(int /*x*/, int /*y*/) {}
+    virtual void OnLButtonUp() {}
+    virtual void OnMouseMove(int /*x*/, int /*y*/) {}
 
     // Accessors.
     UINT GetWidth() const           { return m_width; }
