@@ -42,11 +42,13 @@ private:
         XMFLOAT3 position;
     };
 
-    // Constant buffer structure. Must be 256-byte aligned.
+    // Constant buffer structure aligned for doubles
     struct SceneConstantBuffer
     {
-        XMFLOAT4 offset; // Using XMFLOAT4 for alignment (stores offsetX, offsetY, scale, unused)
-        // Add more parameters here if needed
+        double offsetX;
+        double offsetY;
+        double scale;
+        double padding; // Padding to ensure alignment
     };
 
     // Pipeline objects.
@@ -76,10 +78,10 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
 
-    // Mandelbrot view parameters
-    float m_offsetX;
-    float m_offsetY;
-    float m_scale;
+    // Mandelbrot view parameters (using double precision)
+    double m_offsetX;
+    double m_offsetY;
+    double m_scale;
 
     void LoadPipeline();
     void LoadAssets();

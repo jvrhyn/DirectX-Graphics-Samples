@@ -18,9 +18,9 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     m_rtvDescriptorSize(0),
-    m_offsetX(0.0f), // Initialize offset X
-    m_offsetY(0.0f), // Initialize offset Y
-    m_scale(1.0f)    // Initialize scale
+    m_offsetX(0.0), // Initialize offset X (double)
+    m_offsetY(0.0), // Initialize offset Y (double)
+    m_scale(1.0)    // Initialize scale (double)
 {
 }
 
@@ -34,7 +34,10 @@ void D3D12HelloTriangle::OnUpdate()
 {
     // Update constant buffer data based on the current view state
     SceneConstantBuffer constantBufferData = {};
-    constantBufferData.offset = XMFLOAT4(m_offsetX, m_offsetY, m_scale, 0.0f);
+    constantBufferData.offsetX = m_offsetX;
+    constantBufferData.offsetY = m_offsetY;
+    constantBufferData.scale = m_scale;
+    constantBufferData.padding = 0.0; // Initialize padding
     memcpy(m_pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
 }
 
@@ -187,9 +190,29 @@ void D3D12HelloTriangle::LoadAssets()
 #else
         UINT compileFlags = 0;
 #endif
+        ComPtr<ID3DBlob> errorBlob;
 
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+        HRESULT hr = D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob);
+        if (FAILED(hr))
+        {
+            if (errorBlob)
+            {
+                OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+                errorBlob->Release();
+            }
+            ThrowIfFailed(hr); // Re-throw the error after printing
+        }
+
+        hr = D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob);
+        if (FAILED(hr))
+        {
+            if (errorBlob)
+            {
+                OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+                errorBlob->Release();
+            }
+            ThrowIfFailed(hr); // Re-throw the error after printing
+        }
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -412,8 +435,8 @@ void D3D12HelloTriangle::WaitForPreviousFrame()
 
 void D3D12HelloTriangle::OnKeyDown(UINT8 key)
 {
-    float panStep = 0.1f / m_scale; // Adjust pan speed based on zoom level
-    float zoomFactor = 1.2f;
+    double panStep = 0.1 / m_scale; // Use double for calculation
+    double zoomFactor = 1.2;       // Use double for calculation
 
     switch (key)
     {
